@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dev-dist/
+.env
+.env.*
+!.env.example
+.wrangler/
+*.log
+*.map
+.DS_Store
+.claude/
+planning/
+CLAUDE.md
+test-results/
+playwright-report/
+.vite/
+tsconfig.tsbuildinfo

@@ -1,0 +1,42 @@
+/* R.E.M. design tokens. Low-saturation industrial palette. */
+:root {
+  --c-bg: #191d1b;
+  --c-panel: #272c29;
+  --c-panel-2: #1f2421;
+  --c-border: #414943;
+  --c-text: #d5d9d1;
+  --c-text-dim: #9ca69e;
+  --c-ok: #a8cbb0;          /* also the fixed logo color */
+  --c-alert: #e3a19a;
+  --c-alert-bg: #291d1d;
+  --c-warn: #c9b184;
+  --c-warn-bg: #302b22;
+  --c-paper: #e5e2d5;
+  --c-ink: #23261f;
+
+  --font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius: 2px;            /* square industrial panels; no big rounded cards */
+  --touch: 44px;            /* minimum touch target */
+  --border: 1px solid var(--c-border);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  --ui-brightness: 1;       /* set from Settings.display.brightness (0.6–1) by App */
+
+  /* entry: CRT glass (inner safe rect) in recovery-office.png (1672x941) */
+  --crt-x: 50.03%;
+  --crt-y: 55.58%;
+  --crt-w-ratio: 0.1047;    /* glass width / image width */
+  --crt-h-ratio: 0.1435;    /* glass height / image height */
+}

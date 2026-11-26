@@ -1,0 +1,111 @@
+/* Official paper report. Paper/ink only — no glow, no rounded cards. */
+.rep-paper {
+  position: relative;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 20px 16px 16px;
+  border: 1px solid #b9b5a6;
+  box-shadow: 0 1px 0 #00000040, 0 6px 18px #0000004d;
+  max-width: 720px;
+  margin: 0 auto;
+  overflow: hidden;
+  /* faint paper fibre */
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 27px, #23261f08 27px 28px);
+}
+.rep-paper .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.rep-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 3px double var(--c-ink);
+}
+/* The logo SVG has a fixed #A8CBB0 stroke; a dark plate keeps it legible and unaltered on paper. */
+.rep-logo { background: var(--c-bg); padding: 4px; width: 56px; height: auto; display: block; }
+.rep-agency-en { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; }
+.rep-agency-ko { font-size: 18px; font-weight: 700; letter-spacing: .02em; }
+.rep-agency-sub { font-size: 12px; color: #4a4d44; }
+.rep-stamp { display: block; height: auto; pointer-events: none; user-select: none; }
+.rep-stamp-restricted { width: 84px; transform: rotate(-6deg); opacity: .92; }
+.rep-title {
+  margin: 16px 0 12px;
+  font-size: 19px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: .04em;
+}
+.rep-title-en { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 400; letter-spacing: .14em; color: #4a4d44; }
+.rep-meta, .rep-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  border-top: 1px solid var(--c-ink);
+  border-left: 1px solid var(--c-ink);
+}
+.rep-meta > div, .rep-facts > div {
+  display: grid;
+  grid-template-columns: 5.2em 1fr;
+  border-right: 1px solid var(--c-ink);
+  border-bottom: 1px solid var(--c-ink);
+  min-width: 0;
+}
+.rep-meta dt, .rep-facts dt {
+  background: #23261f12;
+  padding: 4px 6px;
+  font-size: 12px;
+  border-right: 1px solid #23261f55;
+}
+.rep-meta dd, .rep-facts dd { margin: 0; padding: 4px 6px; overflow-wrap: anywhere; font-size: 13px; }
+.rep-sec { margin-top: 18px; }
+.rep-sec h3 {
+  font-size: 14px;
+  margin: 0 0 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--c-ink);
+}
+.rep-summary { margin: 0; }
+.rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rep-table th, .rep-table td { border: 1px solid var(--c-ink); padding: 4px 6px; text-align: left; vertical-align: top; }
+.rep-table thead th { background: #23261f12; font-weight: 600; font-size: 12px; }
+.rep-sub { display: block; font-size: 11px; font-weight: 400; color: #4a4d44; }
+.rep-events { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.rep-events li {
+  display: grid;
+  grid-template-columns: 5.4em 5.2em 1fr;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px dotted #23261f66;
+}
+.rep-ev-type { font-weight: 600; }
+.rep-ev-msg { overflow-wrap: anywhere; }
+.rep-final { position: relative; }
+.rep-verdict { margin: 0 0 8px; }
+.rep-final .rep-facts { grid-template-columns: 1fr 1fr 1fr; }
+.rep-stamps { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; min-height: 96px; align-items: center; }
+.rep-stamp-status { width: 128px; transform: rotate(-8deg); }
+.rep-stamp-sim { width: 112px; transform: rotate(5deg); }
+.rep-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-ink);
+  font-size: 11px;
+  color: #4a4d44;
+}
+.rep-page { white-space: nowrap; }
+
+@media (max-width: 400px) {
+  .rep-paper { padding: 16px 12px 12px; font-size: 13px; }
+  .rep-meta, .rep-facts, .rep-final .rep-facts { grid-template-columns: 1fr; }
+  .rep-stamp-restricted { width: 72px; }
+  .rep-events li { grid-template-columns: 5.2em 1fr; }
+  .rep-ev-msg { grid-column: 1 / -1; padding-left: 0; }
+  .rep-agency-ko { font-size: 16px; }
+}

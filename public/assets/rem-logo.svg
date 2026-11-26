@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 210" role="img" aria-labelledby="title desc">
+  <title id="title">R.E.M. — Reality Emergency Management</title>
+  <desc id="desc">Double shield containing two connection terminals and a right-pointing recovery arrow.</desc>
+  <g fill="none" stroke="#a8cbb0" stroke-linejoin="round">
+    <path d="M100 8 L183 43 V108 Q177 160 100 199 Q23 160 17 108 V43 Z" stroke-width="4"/>
+    <path d="M100 19 L172 50 V108 Q166 153 100 186 Q34 153 28 108 V50 Z" stroke-width="1.5"/>
+    <g fill="#a8cbb0" stroke="none">
+      <path d="M84 57 H51 V131 H84 V113 H69 V75 H84 Z"/>
+      <path d="M116 57 H149 V131 H116 V113 H131 V75 H116 Z"/>
+    </g>
+    <path d="M79 94 H121 M109 82 L121 94 L109 106" stroke-width="5"/>
+    <path d="M83 151 H117" stroke-width="2"/>
+  </g>
+</svg>
