@@ -39,7 +39,7 @@ export const LIMITS = {
 export const ALERT_MAX_MS = 30 * 60 * 1000;
 /** Missed occurrences older than this when the app (re)opens are skipped, not fired. */
 export const MISSED_GRACE_MS = ALERT_MAX_MS;
-export const INTRO_MS = 5000;
+export const INTRO_MS = 5600;
 export const SIGNAL_HOLD_MS = 2000;
 
 export interface Alarm {

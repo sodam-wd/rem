@@ -1,7 +1,18 @@
-import { useMemo, useState } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+} from 'react';
 import type { MissionProps } from '../app/contracts';
 import { MissionFrame, focusNav, useMissionRun, type Tone } from './common';
 import {
+  POWER_ERROR_MS,
+  POWER_FAIL_MESSAGE,
+  POWER_RULE_TEXT,
   WIRE_COLOR_HEX,
   WIRE_COLOR_KO,
   generatePower,
@@ -9,89 +20,209 @@ import {
   validatePower,
   type PowerTerminal,
 } from './power';
-import { SYMBOL_NAME_KO, SymbolGlyph } from './symbols';
 
-const ROW_H = 52;
+/** Panel geometry (px). Terminals sit at a fixed inset from each edge; rows are evenly spaced. */
+const ROW_H = 60;
+const INSET = 28; // terminal centre distance from the panel edge
+const HIT_X = 34; // generous horizontal hit radius for fingers
+const DEFAULT_W = 320; // used until the panel has been measured (and in jsdom)
 
-function terminalName(t: PowerTerminal, side: 'left' | 'right'): string {
-  const parts = [side === 'left' ? `입력 단자 ${t.label}` : `출력 단자 ${t.label}`];
-  if (t.color) parts.push(`${WIRE_COLOR_KO[t.color]}색`);
-  if (t.symbol) parts.push(`${SYMBOL_NAME_KO[t.symbol]} 기호`);
-  return parts.join(' ');
+type Side = 'left' | 'right';
+interface Pt {
+  x: number;
+  y: number;
+}
+
+/** Gentle drooping cable between two points. */
+export function cablePath(a: Pt, b: Pt): string {
+  const dx = b.x - a.x;
+  const sag = Math.min(36, Math.abs(dx) * 0.12 + Math.abs(b.y - a.y) * 0.08 + 8);
+  const c1 = { x: a.x + dx * 0.35, y: a.y + sag };
+  const c2 = { x: b.x - dx * 0.35, y: b.y + sag };
+  return `M${a.x.toFixed(1)} ${a.y.toFixed(1)} C${c1.x.toFixed(1)} ${c1.y.toFixed(1)}, ${c2.x.toFixed(1)} ${c2.y.toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
 }
 
 export function PowerMission(props: MissionProps) {
   const run = useMissionRun(props);
   const puzzle = useMemo(() => generatePower(props.level, props.seed), [props.level, props.seed]);
+  const total = puzzle.left.length;
+  const height = total * ROW_H;
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(DEFAULT_W);
   const [connections, setConnections] = useState<Record<string, string>>({});
-  const [selected, setSelected] = useState<{ side: 'left' | 'right'; id: string } | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [drag, setDrag] = useState<{ from: string; pointerId: number; to: Pt } | null>(null);
+  const [errorPair, setErrorPair] = useState<[string, string] | null>(null);
+  const errorTimer = useRef<number | null>(null);
   const [status, setStatus] = useState<{ tone: Tone; text: string }>({
     tone: 'idle',
-    text: '왼쪽 입력 단자를 누른 뒤 연결할 오른쪽 출력 단자를 누르십시오.',
+    text: '단자를 누른 채 같은 색 단자까지 선을 끌어 놓으십시오.',
   });
 
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      setWidth(w > 0 ? w : DEFAULT_W);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);
+      ro.observe(el);
+    }
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      if (errorTimer.current !== null) window.clearTimeout(errorTimer.current);
+    },
+    [],
+  );
+
+  const byId = useMemo(() => {
+    const m = new Map<string, { t: PowerTerminal; side: Side; row: number }>();
+    puzzle.left.forEach((t, row) => m.set(t.id, { t, side: 'left', row }));
+    puzzle.right.forEach((t, row) => m.set(t.id, { t, side: 'right', row }));
+    return m;
+  }, [puzzle]);
+
+  const centre = (id: string): Pt => {
+    const e = byId.get(id)!;
+    return { x: e.side === 'left' ? INSET : width - INSET, y: (e.row + 0.5) * ROW_H };
+  };
   const connectedRight = new Set(Object.values(connections));
-  const total = puzzle.left.length;
+  const isConnected = (id: string) =>
+    byId.get(id)!.side === 'left' ? id in connections : connectedRight.has(id);
   const done = Object.keys(connections).length;
 
-  const tryConnect = (leftId: string, rightId: string) => {
-    const l = puzzle.left.find((t) => t.id === leftId)!;
-    const r = puzzle.right.find((t) => t.id === rightId)!;
+  const toLocal = (e: { clientX: number; clientY: number }): Pt => {
+    const r = panelRef.current?.getBoundingClientRect();
+    return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
+  };
+  const hitTest = (p: Pt): string | null => {
+    if (p.y < 0 || p.y >= height) return null;
+    const row = Math.floor(p.y / ROW_H);
+    if (Math.abs(p.x - INSET) <= HIT_X) return puzzle.left[row]?.id ?? null;
+    if (Math.abs(p.x - (width - INSET)) <= HIT_X) return puzzle.right[row]?.id ?? null;
+    return null;
+  };
+
+  const tryConnect = (a: string, b: string) => {
+    const [leftId, rightId] = byId.get(a)!.side === 'left' ? [a, b] : [b, a];
     setSelected(null);
     if (isCorrectPair(puzzle, leftId, rightId)) {
       const next = { ...connections, [leftId]: rightId };
       setConnections(next);
-      run.log(`단자 ${l.label} → ${r.label} 연결`);
+      const name = WIRE_COLOR_KO[byId.get(leftId)!.t.color];
+      run.log(`${name} 배선 연결`);
       if (validatePower(puzzle, next)) {
         setStatus({ tone: 'ok', text: `전 회로 연결 완료 (${total}/${total}). 배전 정상.` });
         run.succeed();
       } else {
-        setStatus({
-          tone: 'ok',
-          text: `단자 ${l.label} → ${r.label} 연결됨 (${Object.keys(next).length}/${total}).`,
-        });
+        setStatus({ tone: 'ok', text: `배선 연결됨 (${Object.keys(next).length}/${total}).` });
       }
     } else {
-      setStatus({
-        tone: 'alert',
-        text: `오연결: 단자 ${l.label} → ${r.label}. 규칙을 확인하고 다시 연결하십시오.`,
-      });
-      run.fail(`배전반 오연결 (단자 ${l.label} → ${r.label})`);
+      setErrorPair([leftId, rightId]);
+      if (errorTimer.current !== null) window.clearTimeout(errorTimer.current);
+      errorTimer.current = window.setTimeout(() => setErrorPair(null), POWER_ERROR_MS);
+      setStatus({ tone: 'alert', text: '오연결: 색이 다른 단자입니다. 선을 다시 그으십시오.' });
+      run.fail(POWER_FAIL_MESSAGE);
     }
   };
 
-  const onTerminal = (side: 'left' | 'right', id: string) => {
-    if (run.solved) return;
-    if (!selected || selected.side === side) {
-      setSelected(selected && selected.id === id ? null : { side, id });
+  /** Tap / keyboard sequential selection: first terminal, then a terminal on the other side. */
+  const select = (id: string) => {
+    if (run.solved || isConnected(id)) return;
+    if (selected && selected !== id && byId.get(selected)!.side !== byId.get(id)!.side) {
+      tryConnect(selected, id);
       return;
     }
-    if (side === 'right') tryConnect(selected.id, id);
-    else tryConnect(id, selected.id);
+    setSelected(selected === id ? null : id);
   };
 
-  const renderTerminal = (t: PowerTerminal, side: 'left' | 'right') => {
-    const isConnected = side === 'left' ? t.id in connections : connectedRight.has(t.id);
-    const isSelected = selected?.id === t.id;
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (run.solved || drag) return;
+    const id = hitTest(toLocal(e));
+    if (!id || isConnected(id)) return;
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* capture is best-effort */
+    }
+    setDrag({ from: id, pointerId: e.pointerId, to: toLocal(e) });
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+    setDrag({ ...drag, to: toLocal(e) });
+  };
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const from = drag.from;
+    setDrag(null);
+    try {
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    const target = hitTest(toLocal(e));
+    if (target === from) {
+      select(from); // a tap on a terminal
+      return;
+    }
+    if (!target || isConnected(target) || byId.get(target)!.side === byId.get(from)!.side) {
+      return; // released on empty space / same side: cancel, no failure
+    }
+    tryConnect(from, target);
+  };
+  const onPointerCancel = () => setDrag(null);
+
+  /** Keyboard and assistive-tech activation (click with detail 0). Pointer taps are handled above. */
+  const onTerminalClick = (e: MouseEvent<HTMLButtonElement>, id: string) => {
+    if (e.detail !== 0) return;
+    select(id);
+  };
+
+  const renderTerminal = (t: PowerTerminal, side: Side, row: number) => {
+    const connected = isConnected(t.id);
+    const isSel = selected === t.id || drag?.from === t.id;
+    const isErr = !!errorPair && errorPair.includes(t.id);
+    const state = isErr ? 'error' : connected ? 'connected' : isSel ? 'selected' : 'open';
+    const label = `${side === 'left' ? '왼쪽' : '오른쪽'} ${WIRE_COLOR_KO[t.color]} 단자${
+      connected ? ', 연결됨' : isSel ? ', 선택됨' : ''
+    }`;
     return (
       <button
         key={t.id}
         type="button"
-        className="m-term"
+        className="m-jack"
         data-side={side}
+        data-state={state}
+        data-terminal={t.id}
         data-nav={`power-${side}`}
-        data-state={isConnected ? 'connected' : isSelected ? 'selected' : 'open'}
-        disabled={isConnected || run.solved}
-        aria-pressed={isSelected}
-        aria-label={`${terminalName(t, side)}${isConnected ? ', 연결됨' : ''}`}
-        onClick={() => onTerminal(side, t.id)}
+        style={{
+          top: row * ROW_H + (ROW_H - 44) / 2,
+          ['--jack' as string]: WIRE_COLOR_HEX[t.color],
+        }}
+        aria-disabled={connected || run.solved}
+        aria-pressed={isSel}
+        aria-label={label}
+        onClick={(e) => onTerminalClick(e, t.id)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             const target = e.key === 'ArrowLeft' ? 'left' : 'right';
             if (target === side) return;
             const root = e.currentTarget.closest('.m-frame');
             const first = root?.querySelector<HTMLElement>(
-              `[data-nav="power-${target}"]:not(:disabled)`,
+              `[data-nav="power-${target}"]:not([aria-disabled="true"])`,
             );
             if (first) {
               e.preventDefault();
@@ -102,28 +233,18 @@ export function PowerMission(props: MissionProps) {
           focusNav(e, `power-${side}`, 1);
         }}
       >
-        <span
-          className="m-term-jack"
-          style={t.color ? { background: WIRE_COLOR_HEX[t.color] } : undefined}
-          aria-hidden="true"
-        />
-        <span className="m-term-label m-mono">{t.label}</span>
-        {t.color && <span className="m-term-color">{WIRE_COLOR_KO[t.color]}</span>}
-        {t.symbol && <SymbolGlyph id={t.symbol} size={20} />}
-        <span className="m-term-state">{isConnected ? '연결' : isSelected ? '선택' : ''}</span>
+        <span className="m-jack-core" aria-hidden="true" />
       </button>
     );
   };
 
-  const leftIndex = new Map(puzzle.left.map((t, i) => [t.id, i]));
-  const rightIndex = new Map(puzzle.right.map((t, i) => [t.id, i]));
-  const height = total * ROW_H;
+  const dragFrom = drag ? byId.get(drag.from)! : null;
 
   return (
     <MissionFrame
       code="POWER"
       instrument="배전반 단자대"
-      rule={puzzle.rule}
+      rule={POWER_RULE_TEXT}
       failures={run.failures}
       tone={status.tone}
       status={status.text}
@@ -131,36 +252,56 @@ export function PowerMission(props: MissionProps) {
       <div className="m-power-meta m-mono" aria-label={`연결 ${done} / ${total}`}>
         연결 {done} / {total}
       </div>
-      <div className="m-power" style={{ gridTemplateRows: `repeat(${total}, ${ROW_H}px)` }}>
-        <div className="m-power-col" data-side="left" style={{ gridRow: `1 / span ${total}` }}>
-          {puzzle.left.map((t) => renderTerminal(t, 'left'))}
-        </div>
+      <div
+        ref={panelRef}
+        className="m-power-panel"
+        style={{ height }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onLostPointerCapture={onPointerCancel}
+      >
         <svg
-          className="m-power-wires"
-          style={{ gridRow: `1 / span ${total}` }}
-          viewBox={`0 0 100 ${height}`}
-          preserveAspectRatio="none"
+          className="m-power-svg"
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
           aria-hidden="true"
         >
+          {puzzle.left.map((_, row) => (
+            <line
+              key={row}
+              x1={INSET + 26}
+              x2={width - INSET - 26}
+              y1={(row + 0.5) * ROW_H}
+              y2={(row + 0.5) * ROW_H}
+              className="m-power-guide"
+            />
+          ))}
           {Object.entries(connections).map(([l, r]) => {
-            const lt = puzzle.left[leftIndex.get(l)!];
-            const y1 = (leftIndex.get(l)! + 0.5) * ROW_H;
-            const y2 = (rightIndex.get(r)! + 0.5) * ROW_H;
+            const d = cablePath(centre(l), centre(r));
             return (
-              <path
-                key={l}
-                d={`M0 ${y1} C 50 ${y1}, 50 ${y2}, 100 ${y2}`}
-                fill="none"
-                stroke={lt.color ? WIRE_COLOR_HEX[lt.color] : 'var(--c-ok)'}
-                strokeWidth={3}
-                vectorEffect="non-scaling-stroke"
-              />
+              <g key={l} className="m-cable">
+                <path d={d} className="m-cable-sheath" />
+                <path d={d} className="m-cable-core" style={{ stroke: WIRE_COLOR_HEX[byId.get(l)!.t.color] }} />
+              </g>
             );
           })}
+          {drag && dragFrom && (
+            <g className="m-cable" data-live="true">
+              <path d={cablePath(centre(drag.from), drag.to)} className="m-cable-sheath" />
+              <path
+                d={cablePath(centre(drag.from), drag.to)}
+                className="m-cable-core"
+                style={{ stroke: WIRE_COLOR_HEX[dragFrom.t.color] }}
+              />
+              <circle cx={drag.to.x} cy={drag.to.y} r={6} className="m-cable-plug" style={{ fill: WIRE_COLOR_HEX[dragFrom.t.color] }} />
+            </g>
+          )}
         </svg>
-        <div className="m-power-col" data-side="right" style={{ gridRow: `1 / span ${total}` }}>
-          {puzzle.right.map((t) => renderTerminal(t, 'right'))}
-        </div>
+        {puzzle.left.map((t, row) => renderTerminal(t, 'left', row))}
+        {puzzle.right.map((t, row) => renderTerminal(t, 'right', row))}
       </div>
     </MissionFrame>
   );

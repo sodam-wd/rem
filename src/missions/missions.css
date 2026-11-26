@@ -197,88 +197,90 @@
   background: var(--c-ok);
 }
 
-/* ---------- POWER ---------- */
+/* ---------- POWER (color-only terminals, drawn wires) ---------- */
 .m-power-meta {
   font-size: 13px;
   color: var(--c-text-dim);
 }
-.m-power {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
-  align-items: stretch;
-}
-.m-power-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.m-power-col[data-side='left'] {
-  grid-column: 1;
-}
-.m-power-col[data-side='right'] {
-  grid-column: 3;
-}
-.m-power-wires {
-  grid-column: 2;
+.m-power-panel {
+  position: relative;
   width: 100%;
-  height: 100%;
+  background: #161a18;
+  border: var(--border);
+  touch-action: none; /* dragging a wire must never scroll the page */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overflow: hidden;
 }
-.m-term {
+.m-power-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.m-power-guide {
+  stroke: #262c28;
+  stroke-width: 1;
+  stroke-dasharray: 2 6;
+}
+.m-cable-sheath {
+  fill: none;
+  stroke: #0b0d0c;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.m-cable-core {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.m-cable-plug {
+  stroke: #0b0d0c;
+  stroke-width: 2;
+}
+.m-jack {
+  position: absolute;
+  width: 44px;
   height: 44px;
-  margin: 4px 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #4b544e;
+  background: #232825;
+  cursor: grab;
+  touch-action: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  min-width: 0;
-  background: var(--c-panel-2);
-  color: var(--c-text);
-  border: var(--border);
-  border-radius: var(--radius);
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  touch-action: manipulation;
+  justify-content: center;
 }
-.m-term[data-side='right'] {
-  flex-direction: row-reverse;
+.m-jack[data-side='left'] {
+  left: 6px;
 }
-.m-term-jack {
-  width: 14px;
-  height: 14px;
+.m-jack[data-side='right'] {
+  right: 6px;
+}
+.m-jack-core {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 2px solid var(--c-text-dim);
-  background: transparent;
-  flex: 0 0 auto;
+  background: var(--jack);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.28);
 }
-.m-term-label {
-  font-weight: 700;
+.m-jack[data-state='selected'] {
+  border-color: var(--c-text);
+  box-shadow: 0 0 0 3px rgba(213, 217, 209, 0.25);
 }
-.m-term-color {
-  font-size: 13px;
-}
-.m-term-state {
-  margin-inline: auto 0;
-  font-size: 12px;
-  color: var(--c-text-dim);
-}
-.m-term[data-side='right'] .m-term-state {
-  margin-inline: 0 auto;
-}
-.m-term[data-state='selected'] {
-  border-color: var(--c-warn);
-  background: var(--c-warn-bg);
-}
-.m-term[data-state='selected'] .m-term-state {
-  color: var(--c-warn);
-}
-.m-term[data-state='connected'] {
-  border-color: var(--c-ok);
-  opacity: 0.85;
+.m-jack[data-state='connected'] {
+  border-color: var(--jack);
   cursor: default;
 }
-.m-term[data-state='connected'] .m-term-state {
-  color: var(--c-ok);
+.m-jack[data-state='connected'] .m-jack-core {
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.28), 0 0 0 0 transparent;
+  transform: scale(0.85);
+}
+.m-jack[data-state='error'] {
+  border-color: var(--c-alert);
+  box-shadow: 0 0 0 3px rgba(227, 161, 154, 0.3);
 }
 
 /* ---------- SIGNAL ---------- */

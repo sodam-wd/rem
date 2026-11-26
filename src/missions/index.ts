@@ -7,6 +7,7 @@ import { MemoryMission } from './MemoryMission';
 import { PowerMission } from './PowerMission';
 import { SignalMission } from './SignalMission';
 import { GRAVITY_SPEC } from './gravity';
+import { POWER_PAIRS } from './power';
 import { SIGNAL_TOLERANCE } from './signal';
 
 const holdS = (SIGNAL_HOLD_MS / 1000).toFixed(0);
@@ -18,9 +19,9 @@ export const MISSIONS: Record<ModuleId, MissionDefinition> = {
     nameEn: 'POWER',
     instrument: '배전반 단자대',
     briefing: {
-      1: '같은 색 단자 3쌍을 연결합니다. 색 이름이 함께 표기됩니다.',
-      2: '색과 기호가 모두 같은 단자 5쌍을 연결합니다.',
-      3: '규칙표의 회로 규칙을 해석해 번호 단자 7쌍을 연결합니다.',
+      1: `같은 색 단자 ${POWER_PAIRS[1]}쌍을 손가락이나 마우스로 선을 그어 연결합니다.`,
+      2: `같은 색 단자 ${POWER_PAIRS[2]}쌍을 손가락이나 마우스로 선을 그어 연결합니다.`,
+      3: `같은 색 단자 ${POWER_PAIRS[3]}쌍을 손가락이나 마우스로 선을 그어 연결합니다.`,
     },
     Component: PowerMission,
   },

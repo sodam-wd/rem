@@ -50,6 +50,18 @@ const BOOT_LINES = [
 
 type Phase = 'office' | 'zoom' | 'boot';
 
+/** Intro timeline (ms): office still → zoom (2.6s) → boot (~2s) → finish at INTRO_MS. */
+export const ENTRY_TIMING = {
+  zoomAt: 1000,
+  zoomMs: 2600,
+  bootAt: 3600,
+  /** Black fade over the zoomed glass: starts this long after zoom begins, lasts fadeMs (ends just before boot). */
+  fadeDelayMs: 1600,
+  fadeMs: 900,
+  reducedBootAt: 400,
+  reducedDoneAt: 2400,
+} as const;
+
 export function EntrySequence({ onDone }: { onDone: () => void }) {
   const { reducedMotion, settings } = useRem();
   const [phase, setPhase] = useState<Phase>('office');
@@ -75,12 +87,12 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
     if (reducedMotion) {
       // No zoom: brief fade to the boot screen, then hand over.
-      at(400, () => setPhase('boot'));
-      at(2400, finish);
+      at(ENTRY_TIMING.reducedBootAt, () => setPhase('boot'));
+      at(ENTRY_TIMING.reducedDoneAt, finish);
     } else {
-      at(1000, () => setPhase('zoom'));
-      at(3000, () => setPhase('boot'));
-      BOOT_LINES.forEach((_, i) => at(3100 + i * 280, () => setLines(i + 1)));
+      at(ENTRY_TIMING.zoomAt, () => setPhase('zoom'));
+      at(ENTRY_TIMING.bootAt, () => setPhase('boot'));
+      BOOT_LINES.forEach((_, i) => at(ENTRY_TIMING.bootAt + 100 + i * 280, () => setLines(i + 1)));
       at(INTRO_MS, finish);
     }
     return () => timers.forEach((t) => window.clearTimeout(t));
@@ -92,7 +104,7 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
   const stageStyle: CSSProperties = {
     transformOrigin: `${g.origin.x}px ${g.origin.y}px`,
     transform: zoomed ? `translate(${g.translate.x}px, ${g.translate.y}px) scale(${g.scale})` : 'none',
-    transition: reducedMotion ? 'none' : 'transform 2s cubic-bezier(.55,.05,.6,.95)',
+    transition: reducedMotion ? 'none' : `transform ${ENTRY_TIMING.zoomMs}ms cubic-bezier(.55,.05,.6,.95)`,
   };
 
   return (
@@ -104,7 +116,7 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
       ) : null}
       <div
         className="ui-entry-black"
-        style={{ opacity: phase === 'zoom' || phase === 'boot' ? 1 : 0, transition: reducedMotion ? 'none' : `opacity .7s ease ${phase === 'zoom' ? '1.2s' : '0s'}` }}
+        style={{ opacity: phase === 'zoom' || phase === 'boot' ? 1 : 0, transition: reducedMotion ? 'none' : `opacity ${ENTRY_TIMING.fadeMs}ms ease ${phase === 'zoom' ? ENTRY_TIMING.fadeDelayMs : 0}ms` }}
       />
       <div className="ui-entry-boot" data-on={phase === 'boot'} aria-live="polite">
         <ul className="ui-entry-log">

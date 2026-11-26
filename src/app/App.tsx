@@ -64,8 +64,8 @@ export function App() {
     );
   }
 
-  // Intro: first visit only, never in front of an active alert.
-  const showIntro = !settings.introSeen && !introDone && !isAlertRoute;
+  // Intro: every app entry (skip button available), never in front of an active alert.
+  const showIntro = !introDone && !isAlertRoute;
   if (showIntro) {
     return (
       <EntrySequence
