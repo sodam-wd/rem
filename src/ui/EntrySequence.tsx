@@ -60,6 +60,11 @@ export const ENTRY_TIMING = {
   fadeMs: 900,
   reducedBootAt: 400,
   reducedDoneAt: 2400,
+  /** The timeline waits for the office image to be fully loaded and decoded. If that takes longer than this
+   *  (slow network) or fails, the zoom is dropped and the boot screen is shown instead. */
+  loadTimeoutMs: 12000,
+  /** Fade-in of the office image once it is ready. */
+  imgFadeMs: 300,
 } as const;
 
 export function EntrySequence({ onDone }: { onDone: () => void }) {
@@ -67,6 +72,9 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>('office');
   const [lines, setLines] = useState(reducedMotion ? BOOT_LINES.length : 0);
   const [size, setSize] = useState(() => ({ w: typeof window !== 'undefined' ? window.innerWidth : 390, h: typeof window !== 'undefined' ? window.innerHeight : 844 }));
+  const [ready, setReady] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const doneRef = useRef(false);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -82,9 +90,37 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const markReady = () => {
+    const img = imgRef.current;
+    const done = () => setReady(true);
+    if (img && typeof img.decode === 'function') img.decode().then(done, done);
+    else done();
+  };
+
+  // Image already in the cache (complete before React attached onLoad).
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) markReady();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Slow or failed load: give up on the zoom and show the boot screen.
+  useEffect(() => {
+    if (reducedMotion || ready || loadFailed) return;
+    const t = window.setTimeout(() => setLoadFailed(true), ENTRY_TIMING.loadTimeoutMs);
+    return () => window.clearTimeout(t);
+  }, [reducedMotion, ready, loadFailed]);
+
   useEffect(() => {
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) => timers.push(window.setTimeout(fn, ms));
+    if (!reducedMotion && loadFailed && !ready) {
+      setPhase('boot');
+      BOOT_LINES.forEach((_, i) => at(100 + i * 280, () => setLines(i + 1)));
+      at(INTRO_MS - ENTRY_TIMING.bootAt, finish);
+      return () => timers.forEach((t) => window.clearTimeout(t));
+    }
+    if (!reducedMotion && !ready) return;
     if (reducedMotion) {
       // No zoom: brief fade to the boot screen, then hand over.
       at(ENTRY_TIMING.reducedBootAt, () => setPhase('boot'));
@@ -97,10 +133,11 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
     }
     return () => timers.forEach((t) => window.clearTimeout(t));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reducedMotion]);
+  }, [reducedMotion, ready, loadFailed]);
 
   const g = entryGeometry(size.w, size.h);
-  const zoomed = phase !== 'office';
+  // No zoom when the image never loaded (timeout/error fallback goes straight to the boot screen).
+  const zoomed = phase !== 'office' && !(loadFailed && !ready);
   const stageStyle: CSSProperties = {
     transformOrigin: `${g.origin.x}px ${g.origin.y}px`,
     transform: zoomed ? `translate(${g.translate.x}px, ${g.translate.y}px) scale(${g.scale})` : 'none',
@@ -111,8 +148,30 @@ export function EntrySequence({ onDone }: { onDone: () => void }) {
     <div className="ui-entry" role="dialog" aria-modal="true" aria-label="단말기 접속">
       {phase !== 'boot' || !reducedMotion ? (
         <div className="ui-entry-stage" style={stageStyle} aria-hidden="true">
-          <img src={asset('recovery-office.png')} alt="" style={{ left: g.img.left, top: g.img.top, width: g.img.width, height: g.img.height }} draggable={false} />
+          <img
+            ref={imgRef}
+            src={asset('recovery-office.png')}
+            alt=""
+            decoding="async"
+            fetchPriority="high"
+            onLoad={markReady}
+            onError={() => setLoadFailed(true)}
+            style={{
+              left: g.img.left,
+              top: g.img.top,
+              width: g.img.width,
+              height: g.img.height,
+              opacity: ready || reducedMotion ? 1 : 0,
+              transition: reducedMotion ? 'none' : `opacity ${ENTRY_TIMING.imgFadeMs}ms ease`,
+            }}
+            draggable={false}
+          />
         </div>
+      ) : null}
+      {!ready && !reducedMotion && phase === 'office' ? (
+        <p className="ui-entry-loading mono" role="status">
+          단말기 연결 중… <span className="ui-label-en">CONNECTING</span>
+        </p>
       ) : null}
       <div
         className="ui-entry-black"

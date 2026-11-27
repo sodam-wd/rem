@@ -123,8 +123,13 @@ export function RemProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* ---------- alert side effects ---------- */
+  /** True while an alert wants the siren. If the audio context is still locked/resuming when the alert is
+   *  raised (e.g. a simulation started from a tap: unlock() resolves after the session is raised), the
+   *  siren starts as soon as the engine reports it is unlocked. */
+  const wantSirenRef = useRef(false);
   const startAlertEffects = useCallback(
     (s: Session) => {
+      wantSirenRef.current = true;
       audio.startSiren();
       vibration.startAlarmVibration();
       if (s.mode === 'real') {
@@ -134,6 +139,7 @@ export function RemProvider({ children }: { children: ReactNode }) {
     [audio],
   );
   const stopAlertEffects = useCallback(() => {
+    wantSirenRef.current = false;
     audio.stopSiren();
     vibration.stopAlarmVibration();
     void pwa.closeAlertNotifications();
@@ -345,7 +351,10 @@ export function RemProvider({ children }: { children: ReactNode }) {
     const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     const onMq = () => setSystemReduced(!!mq?.matches);
     mq?.addEventListener?.('change', onMq);
-    const offAudio = audio.onChange(() => setAudioState({ unlocked: audio.unlocked, sounding: audio.sounding }));
+    const offAudio = audio.onChange(() => {
+      if (wantSirenRef.current && audio.unlocked && !audio.sounding) audio.startSiren();
+      setAudioState({ unlocked: audio.unlocked, sounding: audio.sounding });
+    });
     const offWake = wake.onChange(() => setWakeActive(wake.active));
     const offInstall = pwa.onInstallAvailabilityChange(setCanPrompt);
     const onSwMsg = (e: MessageEvent) => {

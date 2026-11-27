@@ -4,6 +4,7 @@ import { LEVEL_LABEL } from '../app/contracts';
 import { useRem } from '../app/RemContext';
 import { MISSIONS } from '../missions';
 import { LEVEL_GRADE, MODULE_LABEL, fmtElapsed, fmtTime } from '../reports/labels';
+import { Stamp } from '../reports/Stamp';
 import { ConfirmDialog, Panel, asset, hhmm } from './common';
 
 /** Derived per-module seed so each module of one incident gets a distinct deterministic puzzle. */
@@ -363,7 +364,7 @@ function RecoveredView({ session, reducedMotion }: { session: Session; reducedMo
               <strong>현실 연결 장애 복구 보고서</strong>
               {session.mode === 'simulation' ? <div style={{ fontSize: 12 }}>훈련 기록</div> : null}
             </div>
-            {step >= 3 ? <img className={reducedMotion ? '' : 'ui-stamp-drop'} src={asset('stamps/recovered.svg')} alt="정상 복구 직인" style={{ width: 96, transform: 'rotate(-8deg)' }} /> : null}
+            {step >= 3 ? <Stamp className={reducedMotion ? '' : 'ui-stamp-drop'} src={asset('stamps/recovered.svg')} alt="정상 복구 직인" style={{ width: 96, transform: 'rotate(-8deg)' }} /> : null}
           </div>
         ) : null}
       </section>

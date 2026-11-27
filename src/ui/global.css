@@ -467,6 +467,9 @@ html[data-motion='reduced'] *, html[data-motion='reduced'] *::before, html[data-
 .ui-entry-stage { position: absolute; inset: 0; will-change: transform; }
 .ui-entry-stage img { position: absolute; display: block; max-width: none; user-select: none; -webkit-user-drag: none; }
 .ui-entry-black { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+.ui-entry-loading { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); margin: 0; text-align: center; font-size: 13px; letter-spacing: .08em; color: var(--c-text-dim); z-index: 1; animation: ui-entry-blink 1.2s steps(2, end) infinite; }
+@keyframes ui-entry-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .ui-entry-loading { animation: none; } }
 .ui-entry-boot {
   position: absolute;
   inset: 0;

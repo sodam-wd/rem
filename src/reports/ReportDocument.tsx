@@ -1,5 +1,6 @@
 import type { Report } from '../app/contracts';
 import { LEVEL_GRADE, MODE_LABEL, MODULE_LABEL, EVENT_LABEL, STATUS_LABEL, fmtDate, fmtDateTime, fmtElapsed, fmtTime } from './labels';
+import { Stamp } from './Stamp';
 import './report.css';
 
 const asset = (p: string) => `${import.meta.env.BASE_URL}assets/${p}`;
@@ -22,7 +23,7 @@ export function ReportDocument({ report }: { report: Report }) {
           <div className="rep-agency-ko">현실 비상 관리국</div>
           <div className="rep-agency-sub">현실 복구과 · 단말기 운용반</div>
         </div>
-        <img className="rep-stamp rep-stamp-restricted" src={asset('stamps/restricted.svg')} alt="대외비 직인" />
+        <Stamp className="rep-stamp rep-stamp-restricted" src={asset('stamps/restricted.svg')} alt="대외비 직인" />
       </header>
 
       <h2 className="rep-title">
@@ -111,8 +112,8 @@ export function ReportDocument({ report }: { report: Report }) {
           <div><dt>잔여 장애</dt><dd className="mono">{m.remainingFaults}건</dd></div>
         </dl>
         <div className="rep-stamps">
-          <img className="rep-stamp rep-stamp-status" src={asset(`stamps/${statusStamp}.svg`)} alt={`${st.ko} 직인`} />
-          {isSim ? <img className="rep-stamp rep-stamp-sim" src={asset('stamps/simulation.svg')} alt="훈련 직인" /> : null}
+          <Stamp className="rep-stamp rep-stamp-status" src={asset(`stamps/${statusStamp}.svg`)} alt={`${st.ko} 직인`} />
+          {isSim ? <Stamp className="rep-stamp rep-stamp-sim" src={asset('stamps/simulation.svg')} alt="훈련 직인" /> : null}
         </div>
       </section>
 
