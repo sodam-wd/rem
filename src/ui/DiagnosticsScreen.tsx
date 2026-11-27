@@ -66,7 +66,7 @@ export function DiagnosticsScreen() {
 
         <li className="ui-diag-row">
           <div className="ui-spread"><span className="ui-diag-title">경보음 <span className="ui-label-en">AUDIO</span></span><DiagChip state={diag.audio} /></div>
-          <p className="ui-note">1.5초 시험음을 재생합니다. 미디어 음량이 0이거나 무음 모드면 들리지 않을 수 있습니다. 앱은 무음·방해 금지 설정을 우회하지 않습니다.</p>
+          <p className="ui-note">1.5초 시험음을 재생합니다. 무음 모드에서도 울리도록 설정되어 있습니다. 미디어 음량이 0이면 들리지 않으니 음량을 올려 두십시오.</p>
           {audioAwaiting ? (
             <div className="ui-stack" role="group" aria-label="시험음 확인">
               <p>시험음이 들렸습니까?</p>

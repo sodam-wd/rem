@@ -18,6 +18,60 @@ export function audioSupported(): boolean {
   return getCtor() !== null;
 }
 
+/**
+ * Ring even when the iPhone ringer/silent switch is on (user decision).
+ * iOS routes Web Audio through the "ambient" audio session, which the silent switch mutes.
+ * - Safari 16.4+/17: navigator.audioSession.type = 'playback' moves it to the media session.
+ * - Older iOS: a looping silent <audio> element started inside the unlock gesture does the same.
+ * Media volume 0 and Do Not Disturb are not affected by this.
+ */
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** 0.5 s of 8-bit mono silence at 8 kHz as a WAV data URI (generated, no audio file). */
+function silentWavUri(): string {
+  const n = 4000;
+  const bytes = new Uint8Array(44 + n);
+  const v = new DataView(bytes.buffer);
+  const str = (o: number, t: string) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  str(36, 'data'); v.setUint32(40, n, true);
+  bytes.fill(128, 44);
+  let bin = '';
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+
+let silentKeeper: HTMLAudioElement | null = null;
+
+function ignoreSilentSwitch(): void {
+  try {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      if (session.type !== 'playback') session.type = 'playback';
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+  if (!isIOS() || typeof Audio === 'undefined') return;
+  try {
+    if (!silentKeeper) {
+      silentKeeper = new Audio(silentWavUri());
+      silentKeeper.loop = true;
+      silentKeeper.setAttribute('playsinline', '');
+    }
+    const r = silentKeeper.play() as Promise<void> | undefined;
+    r?.catch?.(() => {});
+  } catch {
+    /* noop */
+  }
+}
+
 /** Siren pattern, seconds: [freq, duration] — a gap is freq 0. Cycle ≈ 1.3 s. */
 const SIREN_PATTERN: [number, number][] = [
   [880, 0.26],
@@ -111,6 +165,7 @@ export const createAudioEngine: CreateAudioEngine = () => {
       return sounding;
     },
     async unlock() {
+      ignoreSilentSwitch();
       const c = ensureCtx();
       if (!c) return false;
       try {
